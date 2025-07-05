@@ -1,3 +1,9 @@
+---
+layout: default
+---
+
+<!-- Images were scaled to 1920 x 1080 pixels at 150 pixels per inch. Exported as a JPEG with quality set to 40 (out of 100). -->
+
 # Get the essentials
 To get started you'll need some hardware:
 
@@ -33,6 +39,9 @@ The Raspberry Pi Imager will ask you to choose a device, an operating system and
 The Raspberry Pi Imager needs to know which model of Raspberry Pi you have. Click `CHOOSE DEVICE` and select your Raspberry Pi model from the list.
 
 Now choose an operating system for your Raspberry Pi. To use a Raspberry Pi as a radio the *Lite* version of Raspberry Pi OS is sufficient, though other versions of Raspberry Pi OS will also work. Click `CHOOSE OS`, then `Raspberry Pi OS (other)`, then `Raspberry Pi OS Lite (64-bit)`.
+
+> [!TIP]
+> Eject any external USB devices from your computer before proceeding. This reduces the risk that you accidently write to the wrong device.
 
 Tell the Raspberry Pi Imager which drive to write to. Click `CHOOSE STORAGE` and list of devices will appear. Now put your SD card into the SD card reader and plug it into your computer. A new device will appear in the list, select it. Make certain you have selected the right device as all data on it will be erased! If in doubt, eject any other USB devices that appear in the list to ensure you don't accidently overwrite them. Once you're certain, click `NEXT`.
 
@@ -141,3 +150,75 @@ A warning will appear to tell you that all existing data on your device will be 
 The Raspberry Pi imager will write the operating system and your customization to the SD card. It will then verify that all the data was written correctly. If you chose Raspberry Pi OS *Lite* this process will take a few minutes. Once complete, you will see the message `You can now remove the SD card from the reader`. Click `CONTINUE`, close the Raspberry Pi Imager and remove your SD card.
 
 You are now ready to boot your Raspberry Pi!
+
+# Connect
+Plug in your Raspberry Pi and let it boot. This may take several minutes.
+
+Then type
+
+	ssh -i id_franpi fran@franpi
+	
+where `id_franpi` is your private key file, `fran` is the username you set up and `franpi` is the hostname you set.
+
+# Install audio software
+Now install some audio software.
+
+PipeWire is a framework for handling audio streams on the Raspberry Pi. It has a utility called WirePlumber that makes it easier to work with PipeWire streams.
+
+The Music Player Daemon plays radio streams. It has a utility called Music Player Commander that makes it easier to control.
+
+Install these three with
+
+	sudo apt update
+	sudo apt install pipewire wireplumber mpd mpc
+	
+Now start PipeWire
+
+	systemctl --user start pipewire
+	
+Connect the speakers.
+
+Audio streams are identified by a number. To find out the number of the speakers run
+
+	wpctl status
+	
+The output shows various audio devices.
+
+```
+PipeWire 'pipewire-0' [1.2.7, fran@franpi, cookie:812395030]
+ └─ Clients:
+        33. WirePlumber                         [1.2.7, fran@franpi, pid:3676]
+        34. WirePlumber [export]                [1.2.7, fran@franpi, pid:3676]
+        68. wpctl                               [1.2.7, fran@franpi, pid:3813]
+
+Audio
+ ├─ Devices:
+ │      53. Built-in Audio                      [alsa]
+ │      54. Built-in Audio                      [alsa]
+ │  
+ ├─ Sinks:
+ │  *   63. Built-in Audio Stereo               [vol: 0.40]
+ │  
+ ├─ Sink endpoints:
+ │  
+ ├─ Sources:
+ │  
+ ├─ Source endpoints:
+ │  
+ └─ Streams:
+```
+
+Below this are `Video` and `Settings` but these aren't important just now.
+
+In PipeWire jargon, a place where audio is output from your Raspberry Pi is a *sink*. The output of `wpctl status` shows that device 63 is a sink, described as the `Built-in Audio Stereo`. This is the 3.5 mm audio jack socket on the Raspberry Pi. It also shows that the volume is set to `0.40`, which means 40 %.
+
+Play a sound by typing
+
+	pw-play /usr/share/sounds/alsa/Noise.wav
+	
+If it's too quiet, turn up the volume
+
+	wptcl set-volume 63 100%
+	pw-play /usr/share/sounds/alsa/Noise.wav	
+	
+replaing `63` with the number of your sink.
