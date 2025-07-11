@@ -51,7 +51,7 @@ Choose a hostname for your Raspberry Pi. This will be the name you use to connec
 
 Set up a username and password. Click `Set username and password`, then enter a username and password.
 
-If you want to connect your Raspberry Pi to your WiFi, chcek `Configure wireless LAN` and enter your network's service set identifier (SSID). This the name of your network, exactly as it would appear on a phone or a computer. Enter your WiFi password. If you are connecting with an Ethernet cable you do not neet to configure the wireless.
+If you want to connect your Raspberry Pi to your WiFi, chcek `Configure wireless LAN` and enter your network's service set identifier (SSID). This the name of your network, exactly as it would appear on a phone or a computer. Enter your WiFi password. If you are connecting with an Ethernet cable you do not need to configure the wireless.
 
 Click `Set locale settings` and choose your time zone. Leave the `Keyboard layout` blank.
 
@@ -151,14 +151,71 @@ The Raspberry Pi imager will write the operating system and your customization t
 
 You are now ready to boot your Raspberry Pi!
 
-# Connect
-Plug in your Raspberry Pi and let it boot. This may take several minutes.
+# Boot
+Plug in your Raspberry Pi and let it boot. A yellow light on the Raspberry Pi will flash during the boot. The first time that you boot a Raspberry Pi it always takes longer than you expected. Once the yellow light has stopped flashing the Raspberry Pi has finished booting.
 
-Then type
+# Connect
+## If works!
+On your computer, open PowerShell or Terminal and type
 
 	ssh -i id_franpi fran@franpi
 	
-where `id_franpi` is your private key file, `fran` is the username you set up and `franpi` is the hostname you set.
+where `id_franpi` is the private key file you created earlier, `fran` is the username you set up and `franpi` is the hostname you set.
+
+You'll get a warning about the host key fingerprint. Type `yes`.
+
+## It doesn't work!
+Sometimes it doesn't work right away. So if something goes wrong, here's some things you can try.
+
+First, try pinging it
+
+	ping franpi
+
+Have a look for the Raspberry Pi in your router.
+
+Try mapping your network with `nmap`, the network mapper.
+
+	nmap -sn 192.168.0.0/24
+	
+replacing `192.168.0.0` with the address of your network. The last digit should be a zero. So if your computer's address is `192.168.0.65` then your network address is `192.168.0.0`.
+
+If you have a mobile phone, an app like *Fing* can scan your network.
+
+# Check for power supply problems
+Connect to your Raspberry Pi by typing
+
+	ssh -i id_franpi fran@franpi
+
+Then type
+
+	dmesg
+	
+and have a look for anything that suggests a problem with the power supply. Sometimes messages will apear that look like this
+
+	[   14.301684] hwmon hwmon1: Undervoltage detected!
+	[   18.333563] hwmon hwmon1: Voltage normalised
+
+This indicates that, about 14 s after booting, the power supply was not providing sufficient voltage.
+
+Power supply problems are generally not serious but can cause unreliable Blueooth or WiFi.
+
+# Complete Raspberry Pi setup
+First update the package lists. This gets it ready to install software in the next step. Type
+
+	sudo apt update
+
+# Enable auto login
+The Raspberry Pi needs to have auto login enabled. This is mainly for Bluetooth devices which will always be disconnected when there is no user logged in.
+
+Be sure not to use the Raspberry Pi for anything security-critical. As it will be logged in all the time anyone can connect a screen and keyboard and start using it.
+
+Start the Raspberry Pi Software Configuration Tool by typing
+
+	sudo raspi-config
+
+![A screenshot of the Raspberry Pi Software Configuration Tool](/franpi/assets/images/screenshots/raspberry-pi-software-configuration-tool.png)
+
+Open `1 System Options`, then `S6 Auto Login`. When asked `Would you like to automatically log in to the console?`, answer `Yes`. The message `Console autologin is enabled` will appear. Select `OK`, then `Finish` to close the tool.
 
 # Install audio software
 Now install some audio software.
@@ -171,7 +228,8 @@ Install these three with
 
 	sudo apt update
 	sudo apt install pipewire wireplumber mpd mpc
-	
+
+# Play a test sound
 Now start PipeWire
 
 	systemctl --user start pipewire
@@ -222,3 +280,50 @@ If it's too quiet, turn up the volume
 	pw-play /usr/share/sounds/alsa/Noise.wav	
 	
 replaing `63` with the number of your sink.
+
+# Configure Music Player Daemon
+[Music Player Daemon](https://www.musicpd.org/) is a program that runs in the background and continuously plays music. It can easily be used to play internet radio streams.
+
+It needs a bit of setup to get it running. Open the configuration file in the *GNU nano* editor
+
+	sudo nano /etc/mpd.conf
+
+There are two changes to make to the Music Player Daemon's default configuration.
+
+First, set the user which runs Music Player Daemon to the user you created earlier (`fran` in the example).
+
+In the `General music daemon options`, find the line that says
+
+	user     "mpd"
+	
+and change it to
+
+    user     "fran"
+	
+where `fran` is the username you set up earlier.
+
+Second, tell Music Player Daemon to output audio to PipeWire. Scroll down to find the audio output section, then add these lines
+
+	audio_output {
+        type    "pipewire"
+        name    "PipeWire Sound Server"
+	}
+	
+Now change the owner of the Music Player Daemon's files to `fran` (or whatever username you chose).
+
+	sudo chown -R fran:fran /var/lib/mpd
+
+Now stop Music Player Daemon from running as a system service and start it as a user service.
+
+	sudo systemctl stop mpd
+	sudo systemctl disable mpd
+	systemctl --user enable mpd
+	systemctl --user start mpd
+
+# Play a radio station
+You are now ready to play your first radio station.
+
+	mpc add "http://direct.fipradio.fr/live/fip-midfi.mp3"
+	mpc play
+
+You should hear music. Felicitations! You now have a working internet radio player. (You can type `mpc stop` when you are ready to switch it off.)
