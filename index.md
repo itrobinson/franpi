@@ -281,6 +281,8 @@ If it's too quiet, turn up the volume
 	
 replaing `63` with the number of your sink.
 
+You might wonder why there are two devices called `Built-in Audio`. One is the 3.5mm jack, the other is the HDMI. To find out more, use `wpctl inspect 53`, replacing `53` with the device identifier.
+
 # Configure Music Player Daemon
 [Music Player Daemon](https://www.musicpd.org/) is a program that runs in the background and continuously plays music. It can easily be used to play internet radio streams.
 
@@ -327,3 +329,157 @@ You are now ready to play your first radio station.
 	mpc play
 
 You should hear music. Felicitations! You now have a working internet radio player. (You can type `mpc stop` when you are ready to switch it off.)
+
+# Connect a television or monitor
+If you have a television or monitor with a High-Definition Multimedia Interface (HDMI) cable and built in sound it should just work when connected.
+
+# Connect USB audio output
+Various devices output audio over the Universal Serial Bus (USB) including some types of speakers or amplifers. If you have a USB connection on your sound output there's a good chance it will work.
+
+First, find out how your device is described in PipeWire. Type
+
+	watch wpctl status
+	
+This will display (among other things) a list of audio devices. Preceeding the command with `watch` causes it to update every 2 seconds so you'll see if a new device appears.
+
+Have a look at the audio section. You can see there are two built-in audio devices (`55` and `56` in the example below) and one built-in-audio stereo sink (`69` in the example below). The `*` next to the sink indicates it is currently the default audio sink.
+
+```
+Audio
+ ├─ Devices:
+ │      55. Built-in Audio                      [alsa]
+ │      56. Built-in Audio                      [alsa]
+ │
+ ├─ Sinks:
+ │  *   69. Built-in Audio Stereo               [vol: 1.00]
+ │
+```
+
+Now connect your USB device. You should see a new device appear in the list of `Devices` and its corresponding sink in the list of `Sinks`.
+
+For example, after connecting a PMA-60 amplifier, this is the output of `wpctl status`.
+
+```
+Audio
+ ├─ Devices:
+ │      55. Built-in Audio                      [alsa]
+ │      56. Built-in Audio                      [alsa]
+ │      75. PMA-60                              [alsa]
+ │
+ ├─ Sinks:
+ │      69. Built-in Audio Stereo               [vol: 1.00]
+ │  *   76. PMA-60 Analog Stereo                [vol: 0.40]
+```
+
+PipeWire has detected the new device, set it up and then made it the default audio sink (`*`). Now any sound will be played from this new device. The volume's a bit low, 0.4, so turn it up to maximum
+
+	wpctl set-volume 76 100%
+
+# Connect a Bluetooth speaker or headphones
+Make sure that this package is installed
+
+	sudo apt install bluez-alsa-utils
+
+Connecting a Bluetooth audio output device requires a tool called `bluetoothctl`. Connect to your Raspberry Pi and type
+
+	bluetoothctl
+	
+Don't run `bluetoothctl` with `sudo` as it needs to know your username. You should see
+
+```
+Agent registered
+[CHG] Controller XX:XX:XX:XX:XX:XX Pairable: yes
+[bluetooth]# 
+```
+
+with an address shown in place of `XX:XX:XX:XX:XX:XX`.
+
+Now switch on scanning by typing
+
+```
+scan on
+```
+
+You'll see a lot of output as various devices are found.
+
+```
+Discovery started
+[CHG] Controller XX:XX:XX:XX:XX:XX Discovering: yes
+[NEW] Device XX:XX:XX:XX:XX:XX XX-XX-XX-XX-XX-XX
+```
+
+There's no obvious way to figure out which device is which.
+
+Put your device into pairing mode. This may involve pressing a special button in a regular way or pressing a reglar button in a special way. Often there is a flashing light whilst the device is in pairing mode.
+
+Keep an eye on the scan out. You are looking for something that appears to be a new Bluetooth speaker or headphones.
+
+```
+[CHG] Device XX:XX:XX:XX:XX:XX RSSI: -57
+[CHG] Device XX:XX:XX:XX:XX:XX TxPower: 4
+[CHG] Device XX:XX:XX:XX:XX:XX Name: BOOM 3
+[CHG] Device XX:XX:XX:XX:XX:XX Alias: BOOM 3
+[CHG] Device XX:XX:XX:XX:XX:XX Class: 0x00240418
+[CHG] Device XX:XX:XX:XX:XX:XX Icon: audio-headphones
+```
+There it is! Note the address (`XX:XX:XX:XX:XX:XX`) and then stop the scan.
+
+```
+scan off
+```
+
+Now it's time to connect.
+
+```
+pair XX:XX:XX:XX:XX:XX
+```
+
+If it works, you'll see
+
+```
+Attempting to pair with XX:XX:XX:XX:XX:XX
+[CHG] Device XX:XX:XX:XX:XX:XX Connected: yes
+[CHG] Device XX:XX:XX:XX:XX:XX Bonded: yes
+[CHG] Device XX:XX:XX:XX:XX:XX ServicesResolved: yes
+[CHG] Device XX:XX:XX:XX:XX:XX Paired: yes
+Pairing successful
+```
+
+and perhaps some other output.
+
+Now trust your new device.
+
+```
+trust XX:XX:XX:XX:XX:XX
+```
+
+The output will be something like this
+
+```
+[CHG] Device XX:XX:XX:XX:XX:XX Trusted: yes
+Changing XX:XX:XX:XX:XX:XX trust succeeded
+```
+
+If your device is still in pairing mode, switch off pairing mode.
+
+Now try to connect.
+
+```
+connect XX:XX:XX:XX:XX:XX
+```
+
+If this works, you'll see something like this
+
+```
+Attempting to connect to XX:XX:XX:XX:XX:XX
+[CHG] Device XX:XX:XX:XX:XX:XX Connected: yes
+[NEW] Endpoint /org/bluez/hci0/dev_XX_XX_XX_XX_XX_XX/sep1 
+[NEW] Transport /org/bluez/hci0/dev_XX_XX_XX_XX_XX_XX/sep1/fd0 
+[CHG] Transport /org/bluez/hci0/dev_XX_XX_XX_XX_XX_XX/sep1/fd0 Delay: 0x0096 (150)
+Connection successful
+[CHG] Transport /org/bluez/hci0/dev_XX_XX_XX_XX_XX_XX/sep1/fd0 Volume: 0x002f (47)
+[CHG] Device XX:XX:XX:XX:XX:XX ServicesResolved: yes
+[BOOM 3]# 
+```
+
+Note that the command prompt has now changed from `[bluetooth]#` to `[BOOM 3]#`.
